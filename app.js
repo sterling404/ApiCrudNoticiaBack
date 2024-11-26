@@ -1,57 +1,62 @@
 const express = require("express");
-const db = require("./db");
+// const db = require("./db");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 require("dotenv").config();
+const { createClient } = require("@supabase/supabase-js");
 
+const supabase = createClient(
+  // process.env.DATABASE_URL,
+  process.env.PUBLIC_SUPABASE_URL,
+  process.env.PUBLIC_SUPABASE_KEY
+);
 var app = express();
 
 var jsonParser = bodyParser.json();
 
 app.use(cors());
 
+app.get("/", (req, res) => {
+  res.send(`Blog API Working`);
+});
+
 app.get("/blogs", async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM blogs");
-    res.json(result.rows);
+    const result = await supabase.from("blogs").select();
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).send("Internal Server Error");
   }
 });
+
 app.get("/blogs/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const result = await db.query("SELECT * FROM blogs WHERE id = $1", [id]);
-
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ message: "Blog not found" });
-    }
+    const result = await supabase
+      .from("blogs")
+      .select()
+      .eq("id", req.params.id);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).send("Internal Server Error");
   }
 });
+
 
 app.post("/blogs", jsonParser, async (req, res) => {
   try {
-    await db.query(
-      "INSERT INTO blogs(title, subtitle, body, report_type, is_primary, publisher_name, publisher_job) " +
-        "VALUES ($1, $2, $3, $4, $5, $6, $7) ",
-      [
-        req.body.title,
-        req.body.subtitle,
-        req.body.body,
-        req.body.report_type,
-        req.body.is_primary,
-        req.body.publisher_name,
-        req.body.publisher_job,
-      ]
-    );
+    const result = await supabase.from("blogs").insert({
+      title: req.body.title,
+      subtitle: req.body.subtitle,
+      body: req.body.body,
+      report_type:req.body.report_type,
+      is_primary: req.body.is_primary,
+      publisher_name: req.body.publisher_name,
+      publisher_job: req.body.publisher_job,
+    });
     res.status(200).json({
-      message: "Blog was inserted successfully",
+      message: "Blog was created successfully",
     });
   } catch (err) {
     console.error(err);
@@ -61,27 +66,41 @@ app.post("/blogs", jsonParser, async (req, res) => {
 
 app.put("/blogs/:id", jsonParser, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10); // Obtener el ID de los parámetros de la URL
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid ID format" });
-    }
-
-    await db.query(
-      "UPDATE blogs " +
-        "SET title = $1, subtitle = $2, body = $3, report_type = $4, is_primary = $5, publisher_name = $6, publisher_job = $7 " +
-        "WHERE id = $8",
-      [
-        req.body.title,
-        req.body.subtitle,
-        req.body.body,
-        req.body.report_type,
-        req.body.is_primary,
-        req.body.publisher_name,
-        req.body.publisher_job,
-        id,
-      ]
-    );
-
+    const result = await supabase
+      .from("blogs")
+      .update({
+        title: req.body.title,
+        subtitle: req.body.subtitle,
+        body: req.body.body,
+        report_type:  req.body.report_type,
+        is_primary: req.body.is_primary,
+        publisher_name: req.body.publisher_name,
+        publisher_job: req.body.publisher_job,
+      })
+      .eq("id", req.params.id);
+    res.status(200).json({
+      message: "Blog was updated successfully",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+//eliminar
+app.put("/blogs/:id/eliminar", jsonParser, async (req, res) => {
+  try {
+    const result = await supabase
+      .from("blogs")
+      .update({
+        title: req.body.title,
+        subtitle: req.body.subtitle,
+        body: req.body.body,
+        report_type:  req.body.report_type,
+        is_primary: req.body.is_primary,
+        publisher_name: req.body.publisher_name,
+        publisher_job: req.body.publisher_job,
+      })
+      .eq("id", req.params.id);
     res.status(200).json({
       message: "Blog was updated successfully",
     });
@@ -91,16 +110,32 @@ app.put("/blogs/:id", jsonParser, async (req, res) => {
   }
 });
 
+
 // Eliminar un blog
 app.delete("/blogs/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    await db.query("DELETE FROM blogs WHERE id = $1", [id]);
+    // Obtén el ID del parámetro de la URL
+    const blogId = req.params.id;
+
+    // Usa Supabase para eliminar el blog
+    const { data, error } = await supabase
+      .from("blogs")
+      .delete()
+      .eq("id", blogId);
+
+    // Maneja posibles errores
+    if (error) {
+      console.error("Error al eliminar el blog:", error);
+      return res.status(500).json({ message: "Error al eliminar el blog" });
+    }
+
+    // Responde con un mensaje de éxito
     res.status(200).json({
       message: "Blog was deleted successfully",
+      data,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error interno del servidor:", err);
     res.status(500).send("Internal Server Error");
   }
 });
