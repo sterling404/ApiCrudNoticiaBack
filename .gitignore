@@ -7,6 +7,7 @@
 /tmp
 /out-tsc
 /bazel-out
+db.js
 
 # Node
 /node_modules
@@ -42,4 +43,3 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
-db.js
